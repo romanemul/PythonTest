@@ -26,6 +26,10 @@ class OtherChild(Child):
         def add(self, one, two , three, four):
             return one + two + three + four
 
+class Signals(QObject):
+    def __init__(self):
+        self.signa_one = Signals()
+
 class Worker(QRunnable):
     def __init__(self, *args, **kwargs):
         super(Worker, self).__init__()
