@@ -1,104 +1,77 @@
+import sys
+import traceback
+
 from PyQt5.QtGui import *
-from PyQt5.QtWidgets import *
-from PyQt5.QtCore import *
+from PyQt5.QtWidgets import QApplication, QMainWindow, QPushButton, QGridLayout, QWidget, QProgressBar, QListWidget
+from PyQt5.QtCore import QRunnable, QObject, QThreadPool, pyqtSignal as Signal, pyqtSlot as Slot, pyqtSignal
 
-import time
-
-class Parent():
-    def __init__(self, sex):
-        self.age = 20
-        self.sex = sex
-
-    def add(self, first, second):
-        return first + second
-
-class Child(Parent):
-    def __init__(self, sex):
-        super(Child, self).__init__(sex)
-        self.age = self.age
-
-    def add(self, first, second, third):
-        return first + second + third
-
-
-class OtherChild(Child):
-    def __init__(self):
-        def add(self, one, two , three, four):
-            return one + two + three + four
 
 class Signals(QObject):
-    def __init__(self):
-        self.signa_one = Signals()
+        signal_one = Signal(int)
+        signal_two = Signal(int)
 
 class Worker(QRunnable):
-    def __init__(self, *args, **kwargs):
+    def __init__(self, n, *args, **kwargs):
         super(Worker, self).__init__()
-        self.args = args
-        self.kwargs = kwargs
+        self.n = n
+        self.signals = Signals()
 
-    'Worker thread'
-
-    @pyqtSlot()
+    @Slot()
     def run(self):
         print("Thread start")
-
-
+        self.signals.signal_one.emit(self.n)
+        self.signals.signal_two.emit(self.n)
+#
+#
 class MainWindow(QMainWindow):
+    def __init__(self, parent=None, *args, **kwargs):
+        # super(MainWindow, self).__init__(*args, **kwargs)
+        super().__init__(parent)
+        self.setWindowTitle('QThreadPool Demo')
 
-    def __init__(self, *args, **kwargs):
-        super(MainWindow, self).__init__(*args, **kwargs)
+        self.job_count = 10
+        self.comleted_jobs = []
 
-        self.counter = 0
+        widget = QWidget()
+        widget.setLayout(QGridLayout())
+        self.setCentralWidget(widget)
 
-        layout = QVBoxLayout()
+        self.btn_start = QPushButton('Start', clicked=self.start_jobs)
+        self.progress_bar = QProgressBar(minimum=0, maximum=self.job_count)
+        self.list = QListWidget()
 
-        self.l = QLabel("Start")
-        b = QPushButton("DANGER!")
-        b.pressed.connect(self.oh_no)
-
-        c = QPushButton("?")
-        c.pressed.connect(self.change_message)
-
-        layout.addWidget(self.l)
-        layout.addWidget(b)
-
-        layout.addWidget(c)
-
-        w = QWidget()
-        w.setLayout(layout)
-
-        self.setCentralWidget(w)
+        widget.layout().addWidget(self.list, 0, 0, 1, 2)
+        widget.layout().addWidget(self.progress_bar, 1, 0)
+        widget.layout().addWidget(self.btn_start, 1, 1)
 
         self.show()
+#
+    def start_jobs(self):
+        self.restart()
+        pool = QThreadPool.globalInstance()
+        for i in range(1, self.job_count + 1):
+            worker = Worker(i)
+            worker.signals.signal_one.connect(self.complete)
+            worker.signals.signal_two.connect(self.start)
+            pool.start(worker)
+#
+    def restart(self):
+        self.progress_bar.setValue(0)
+        self.comleted_jobs = []
+        self.btn_start.setEnabled(False)
+#
+    def start(self, n):
+        self.list.addItem(f'Job #{n} started...')
 
-    def change_message(self):
-        self.message = "OH NO"
+    def complete(self, n):
+        self.list.addItem(f'Job #{n} completed.')
+        self.comleted_jobs.append(n)
+        self.progress_bar.setValue(len(self.comleted_jobs))
 
-    def oh_no(self):
-        self.message = "Pressed"
+        if len(self.comleted_jobs) == self.job_count:
+            self.btn_start.setEnabled(True)
 
-        for n in range(100):
-            time.sleep(0.1)
-            self.l.setText(self.message)
-            QApplication.processEvents()
 
 app = QApplication([])
 window = MainWindow()
 app.exec_()
-
-
-# p = Parent("s")
-# print(p.age)
-# print(p.sex)
-#
-# c = Child("F")
-#
-# print(c.age)
-# s = c.add(3, 5, 5)
-# super(Child, c).add(11,2)
-# print(s)
-#
-#
-# other = OtherChild
-# print(c.sex)
-# # print(other.age)
